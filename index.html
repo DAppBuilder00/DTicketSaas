@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HelioDesk — Frontend SaaS</title>
+  <meta name="description" content="Frontend-only helpdesk & email manager with pipelines. Copy into CodePen.">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app" id="app" data-theme="dark">
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">📬</div>
+        <div>HelioDesk <span class="chip">Frontend SaaS</span></div>
+      </div>
+      <div class="top-actions">
+        <button class="btn ghost" id="themeToggle" title="Toggle theme">🌓 Theme</button>
+        <button class="btn" id="exportCsvBtn" title="Export tickets as CSV">⬇️ Export</button>
+        <button class="btn primary" id="newTicketBtn" title="Quick create ticket">➕ New Ticket</button>
+        <button class="btn warn" id="upgradeBtn" title="Upgrade plan">⭐ Upgrade</button>
+      </div>
+    </header>
+
+    <!-- Layout -->
+    <main class="layout">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <nav class="nav">
+          <h4>Navigation</h4>
+          <div class="item active" data-view="dashboard">🏠 Dashboard</div>
+          <div class="item" data-view="inbox">📥 Inbox</div>
+          <div class="item" data-view="compose">✉️ Compose</div>
+          <div class="item" data-view="canned">💬 Canned Replies</div>
+          <div class="item" data-view="pipelines">🧩 Pipelines</div>
+          <div class="item" data-view="analytics">📊 Analytics</div>
+          <div class="item" data-view="settings">⚙️ Settings</div>
+          <div class="divider"></div>
+          <div class="item" data-view="pricing">💎 Pricing</div>
+          <div class="item" data-view="about">❓ About</div>
+        </nav>
+      </aside>
+
+      <!-- Content -->
+      <section class="content">
+        <!-- Dashboard -->
+        <div class="panel" id="view-dashboard">
+          <div class="panel-header">
+            <div class="row">
+              <h2 class="nomargin">Dashboard</h2>
+              <span class="badge" id="planBadge">Plan: Free</span>
+            </div>
+            <div class="row search">
+              <input class="input" id="globalSearch" placeholder="Quick search tickets, customers, tags…" />
+              <select id="statusFilter">
+                <option value="">Status: All</option>
+                <option>Open</option>
+                <option>Pending</option>
+                <option>Closed</option>
+                <option>Snoozed</option>
+              </select>
+              <select id="priorityFilter">
+                <option value="">Priority: All</option>
+                <option>Low</option>
+                <option>Medium</option>
+                <option>High</option>
+                <option>Urgent</option>
+              </select>
+              <select id="sortSelect">
+                <option value="updatedAt-desc">Sort: Updated (newest)</option>
+                <option value="updatedAt-asc">Sort: Updated (oldest)</option>
+                <option value="priority-desc">Sort: Priority (high→low)</option>
+                <option value="priority-asc">Sort: Priority (low→high)</option>
+                <option value="dueAt-asc">Sort: Due (soonest)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="panel-body grid cols-3">
+            <div class="panel">
+              <div class="panel-header"><strong>Open Tickets</strong></div>
+              <div class="panel-body">
+                <div class="row gap12">
+                  <div class="chip ok" id="metric-open">0</div>
+                  <div class="chip warn" id="metric-sla">SLA at risk: 0</div>
+                  <div class="chip" id="metric-avg">Avg. First Reply: —</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-header"><strong>Today</strong></div>
+              <div class="panel-body">
+                <div id="todayStats">No activity yet.</div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-header"><strong>Quick Actions</strong></div>
+              <div class="panel-body row wrap gap10">
+                <button class="btn" id="quickOpen">Open ⏱️</button>
+                <button class="btn" id="quickPending">Mark Pending</button>
+                <button class="btn danger" id="quickClose">Close Selected</button>
+                <button class="btn" id="quickSnooze">Snooze 24h</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <strong>Tickets</strong>
+              <div class="row">
+                <label class="row gap6"><input type="checkbox" id="selectAll"> Select All</label>
+              </div>
+            </div>
+            <div class="panel-body table-wrap">
+              <table id="ticketsTable" class="tickets-table">
+                <thead>
+                  <tr>
+                    <th style="width:48px;"></th>
+                    <th>Subject</th>
+                    <th style="width:18ch">Customer</th>
+                    <th style="width:11ch">Status</th>
+                    <th style="width:10ch">Priority</th>
+                    <th style="width:22ch">Tags</th>
+                    <th style="width:18ch">Due</th>
+                    <th style="width:18ch">Updated</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Inbox -->
+        <div class="panel hidden" id="view-inbox">
+          <div class="panel-header">
+            <h2 class="nomargin">Inbox</h2>
+            <div class="row search">
+              <input class="input" id="inboxSearch" placeholder="Search inbox…" />
+              <button class="btn" id="refreshInbox">Refresh</button>
+            </div>
+          </div>
+          <div class="panel-body grid cols-3">
+            <div class="panel">
+              <div class="panel-header"><strong>Folders</strong></div>
+              <div class="panel-body">
+                <div class="item" data-folder="all">All Mail</div>
+                <div class="item" data-folder="unread">Unread</div>
+                <div class="item" data-folder="starred">⭐ Starred</div>
+                <div class="item" data-folder="assigned">Assigned to me</div>
+              </div>
+            </div>
+            <div class="panel span-2">
+              <div class="panel-header"><strong>Messages</strong></div>
+              <div class="panel-body" id="inboxList">No messages. Compose one!</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Compose -->
+        <div class="panel hidden" id="view-compose">
+          <div class="panel-header"><h2 class="nomargin">Compose</h2></div>
+          <div class="panel-body grid">
+            <div class="grid two-col">
+              <div class="panel">
+                <div class="panel-header"><strong>New Ticket / Email</strong></div>
+                <div class="panel-body grid gap10">
+                  <input class="input" id="to" placeholder="To (customer email)" />
+                  <input class="input" id="subject" placeholder="Subject" />
+                  <textarea id="body" placeholder="Write your message…"></textarea>
+                  <div class="row gap10">
+                    <select id="priority">
+                      <option>Low</option><option selected>Medium</option><option>High</option><option>Urgent</option>
+                    </select>
+                    <input class="input" id="tags" placeholder="Tags (comma separated)" />
+                  </div>
+                  <div class="row gap10">
+                    <button class="btn" id="insertCanned">💬 Insert Canned</button>
+                    <button class="btn primary" id="sendBtn">Send</button>
+                  </div>
+                </div>
+              </div>
+              <div class="panel">
+                <div class="panel-header"><strong>Options</strong></div>
+                <div class="panel-body grid gap10">
+                  <label class="row between">
+                    SLA (hrs)
+                    <input class="input" id="slaHours" type="number" min="1" value="24" style="width:120px" />
+                  </label>
+                  <label class="row between">
+                    Assign To
+                    <select id="assignTo" style="width:160px"></select>
+                  </label>
+                  <label class="row between">
+                    Starred
+                    <input type="checkbox" id="starred" />
+                  </label>
+                  <div class="divider"></div>
+                  <button class="btn" id="saveDraft">💾 Save Draft</button>
+                  <button class="btn" id="loadDraft">📂 Load Draft</button>
+                  <button class="btn danger" id="clearDraft">🗑️ Clear Draft</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Canned Replies -->
+        <div class="panel hidden" id="view-canned">
+          <div class="panel-header"><h2 class="nomargin">Canned Replies</h2></div>
+          <div class="panel-body grid">
+            <div class="row gap8">
+              <input class="input" id="cannedTitle" placeholder="Title e.g., Shipping ETA"/>
+              <input class="input" id="cannedShortcut" placeholder="Shortcut e.g., /eta"/>
+            </div>
+            <textarea id="cannedBody" placeholder="Write reusable reply content…"></textarea>
+            <div class="row gap8">
+              <button class="btn" id="addCanned">➕ Add</button>
+              <button class="btn" id="exportCanned">⬇️ Export JSON</button>
+              <label class="btn" for="importCanned">⬆️ Import JSON</label>
+              <input id="importCanned" type="file" accept="application/json" class="hidden" />
+            </div>
+            <div id="cannedList">No canned replies yet.</div>
+          </div>
+        </div>
+
+        <!-- Pipelines -->
+        <div class="panel hidden" id="view-pipelines">
+          <div class="panel-header"><h2 class="nomargin">Pipelines</h2></div>
+          <div class="panel-body pipeline">
+            <div class="stage" data-status="Open">
+              <div class="stage-header">New</div>
+              <div class="dropzone" id="stage-open"></div>
+            </div>
+            <div class="stage" data-status="Pending">
+              <div class="stage-header">In Progress</div>
+              <div class="dropzone" id="stage-pending"></div>
+            </div>
+            <div class="stage" data-status="Closed">
+              <div class="stage-header">Closed</div>
+              <div class="dropzone" id="stage-closed"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Analytics -->
+        <div class="panel hidden" id="view-analytics">
+          <div class="panel-header"><h2 class="nomargin">Analytics (Demo)</h2></div>
+          <div class="panel-body grid cols-3">
+            <div class="panel"><div class="panel-header"><strong>Volume</strong></div><div class="panel-body" id="anl-volume">—</div></div>
+            <div class="panel"><div class="panel-header"><strong>Avg First Response</strong></div><div class="panel-body" id="anl-afrt">—</div></div>
+            <div class="panel"><div class="panel-header"><strong>CSAT</strong></div><div class="panel-body" id="anl-csat">—</div></div>
+          </div>
+        </div>
+
+        <!-- Settings -->
+        <div class="panel hidden" id="view-settings">
+          <div class="panel-header"><h2 class="nomargin">Settings</h2></div>
+          <div class="panel-body grid gap12 maxw">
+            <label>Email From Name<input class="input" id="set-fromName" placeholder="Your Support"/></label>
+            <label>Support Address<input class="input" id="set-fromEmail" placeholder="support@example.com"/></label>
+            <label>Signature<textarea id="set-signature" placeholder="Thanks,\nYour Support Team"></textarea></label>
+            <div class="divider"></div>
+            <div class="row gap10">
+              <button class="btn" id="saveSettings">💾 Save</button>
+              <button class="btn" id="resetSettings">♻️ Reset</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pricing -->
+        <div class="panel hidden" id="view-pricing">
+          <div class="panel-header"><h2 class="nomargin">Pricing</h2></div>
+          <div class="panel-body grid cols-3">
+            <div class="panel">
+              <div class="panel-header"><strong>Free</strong></div>
+              <div class="panel-body">
+                <ul>
+                  <li>Up to 25 tickets</li>
+                  <li>3 canned replies</li>
+                  <li>Basic analytics</li>
+                </ul>
+                <button class="btn" data-plan="Free">Current Plan</button>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-header"><strong>Pro</strong> <span class="chip">Popular</span></div>
+              <div class="panel-body">
+                <ul>
+                  <li>Unlimited tickets</li>
+                  <li>Unlimited canned replies</li>
+                  <li>Advanced analytics</li>
+                </ul>
+                <button class="btn primary" data-plan="Pro">Choose Pro</button>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-header"><strong>Team</strong></div>
+              <div class="panel-body">
+                <ul>
+                  <li>Everything in Pro</li>
+                  <li>Shared inbox</li>
+                  <li>Roles & permissions</li>
+                </ul>
+                <button class="btn primary" data-plan="Team">Choose Team</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- About -->
+        <div class="panel hidden" id="view-about">
+          <div class="panel-header"><h2 class="nomargin">About</h2></div>
+          <div class="panel-body">
+            <p><strong>HelioDesk</strong> is a frontend-only demo of a HelpDesk & Email management SaaS. It simulates ticketing, canned replies, pipelines, analytics, settings, and pricing tiers using <code>localStorage</code>. Paste these files into CodePen or run locally.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">Built with ❤️ — Frontend-only SaaS demo. Data persists in your browser.</footer>
+    <div id="toast" class="toast hidden">Saved</div>
+  </div>
+
+  <!-- Quick Create Ticket Modal -->
+  <div class="modal hidden" id="ticketModal" role="dialog" aria-modal="true" aria-labelledby="ticketModalTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="ticketModalTitle">New Ticket</h3>
+        <button class="btn ghost" id="modalClose">✖</button>
+      </div>
+      <div class="modal-body grid gap10">
+        <input class="input" id="m_to" placeholder="Customer email" />
+        <input class="input" id="m_subject" placeholder="Subject" />
+        <textarea id="m_body" placeholder="Message…"></textarea>
+        <div class="row gap10">
+          <select id="m_priority">
+            <option>Low</option><option selected>Medium</option><option>High</option><option>Urgent</option>
+          </select>
+          <input class="input" id="m_tags" placeholder="Tags (comma separated)" />
+          <input class="input" id="m_sla" type="number" min="1" value="24" style="width:120px" />
+        </div>
+      </div>
+      <div class="modal-footer row gap10">
+        <button class="btn" id="modalCancel">Cancel</button>
+        <button class="btn primary" id="modalCreate">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
